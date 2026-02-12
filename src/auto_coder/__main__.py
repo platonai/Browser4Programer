@@ -56,6 +56,14 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Enable verbose logging",
     )
+    parser.add_argument(
+        "--repair-command",
+        dest="repair_command",
+        default=None,
+        help="External CLI command template for code repair.  "
+             "Supports {issue_file} and {source_file} placeholders.  "
+             "Example: copilot -p \"Fix issues described in {issue_file}\" --allow-all-tools",
+    )
 
     args = parser.parse_args(argv)
 
@@ -67,6 +75,7 @@ def main(argv: list[str] | None = None) -> int:
         md_result = process_markdown(
             args.markdown_file,
             max_iterations=args.max_iterations,
+            repair_command=args.repair_command,
         )
         _print_markdown_result(md_result)
         return 0 if md_result.failure_count == 0 else 1
@@ -80,6 +89,7 @@ def main(argv: list[str] | None = None) -> int:
         task_description=task_description,
         test_call=args.test_call,
         max_iterations=args.max_iterations,
+        repair_command=args.repair_command,
     )
 
     _print_result(result)
