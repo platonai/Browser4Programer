@@ -4,16 +4,19 @@ Usage:
     python -m auto_coder "Write a function that computes the factorial of n"
     python -m auto_coder --task "Sort a list" --test "solution([3,1,2])"
     python -m auto_coder --markdown examples/demo.md
+    python -m auto_coder --agent tasks.json
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import sys
 
 from .pipeline import run_pipeline
 from .markdown_processor import process_markdown
+from .agent import Agent, AgentResult, TaskPriority
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -64,11 +67,29 @@ def main(argv: list[str] | None = None) -> int:
              "Supports {issue_file} and {source_file} placeholders.  "
              "Example: copilot -p \"Fix issues described in {issue_file}\" --allow-all-tools",
     )
+    parser.add_argument(
+        "--agent",
+        dest="agent_file",
+        default=None,
+        help="Path to a JSON file describing multiple tasks for the agent "
+             "to manage.  Each entry must have 'task_id' and 'description'; "
+             "optional keys: 'test_call', 'priority', 'dependencies'.",
+    )
 
     args = parser.parse_args(argv)
 
     level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(level=level, format="%(levelname)s: %(message)s")
+
+    # Agent mode
+    if args.agent_file:
+        agent_result = _run_agent(
+            args.agent_file,
+            max_iterations=args.max_iterations,
+            repair_command=args.repair_command,
+        )
+        _print_agent_result(agent_result)
+        return 0 if agent_result.all_succeeded else 1
 
     # Markdown mode
     if args.markdown_file:
@@ -136,6 +157,58 @@ def _print_markdown_result(md_result):
         if not br.success and br.last_diagnosis:
             print(f"  Error: {br.last_diagnosis.root_cause}")
             print(f"  Suggestion: {br.last_diagnosis.suggestion}")
+
+    print("=" * 60)
+
+
+def _run_agent(filepath: str, *, max_iterations: int, repair_command) -> AgentResult:
+    """Load a JSON task file and run all tasks through the agent."""
+    with open(filepath, encoding="utf-8") as fh:
+        task_list = json.load(fh)
+
+    if not isinstance(task_list, list):
+        raise ValueError("Agent file must contain a JSON array of task objects")
+
+    agent = Agent(max_iterations=max_iterations, repair_command=repair_command)
+
+    priority_map = {
+        "low": TaskPriority.LOW,
+        "normal": TaskPriority.NORMAL,
+        "high": TaskPriority.HIGH,
+    }
+
+    for entry in task_list:
+        priority_str = entry.get("priority", "normal").lower()
+        priority = priority_map.get(priority_str, TaskPriority.NORMAL)
+        agent.add_task(
+            task_id=entry["task_id"],
+            description=entry["description"],
+            test_call=entry.get("test_call"),
+            priority=priority,
+            dependencies=entry.get("dependencies", []),
+        )
+
+    return agent.run()
+
+
+def _print_agent_result(agent_result: AgentResult):
+    """Print a human-readable summary of the agent result."""
+    print("\n" + "=" * 60)
+    print("AGENT RESULT")
+    print("=" * 60)
+    print(f"Total tasks: {len(agent_result.tasks)}")
+    print(f"Completed: {agent_result.completed_count}")
+    print(f"Failed: {agent_result.failed_count}")
+    print(f"Skipped: {agent_result.skipped_count}")
+
+    for task in agent_result.tasks:
+        status = task.status.value.upper()
+        print(f"\n--- Task {task.task_id} [{status}] ---")
+        print(f"  Description: {task.description}")
+        if task.result and task.result.final_code:
+            print(f"  Generated code: {len(task.result.final_code)} bytes")
+        if task.error_message:
+            print(f"  Error: {task.error_message}")
 
     print("=" * 60)
 

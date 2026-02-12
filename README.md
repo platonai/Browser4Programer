@@ -40,6 +40,37 @@ sandbox, and — if execution fails — automatically diagnosed and repaired.
 The loop repeats until the block succeeds or the iteration limit is
 reached.
 
+### Agent Mode
+
+Manage multiple tasks with dependencies and priorities through an
+intelligent agent:
+
+```bash
+python -m auto_coder --agent tasks.json
+```
+
+The JSON file should contain an array of task objects:
+
+```json
+[
+    {
+        "task_id": "add",
+        "description": "Write a function add that adds two numbers",
+        "test_call": "add(2, 3)",
+        "priority": "high"
+    },
+    {
+        "task_id": "sort",
+        "description": "Write a function sort_list that sorts a list",
+        "test_call": "sort_list([3, 1, 2])",
+        "dependencies": ["add"]
+    }
+]
+```
+
+The agent resolves dependencies, orders tasks by priority, and skips
+downstream tasks when a dependency fails.
+
 ### Running Tests
 
 ```bash
@@ -60,5 +91,6 @@ src/auto_coder/
 ├── diagnosis.py           # Stage 5: error analysis
 ├── repair.py              # Stage 6: automatic repair
 ├── pipeline.py            # Orchestrator (closed loop)
-└── markdown_processor.py  # Markdown code-block processing loop
+├── markdown_processor.py  # Markdown code-block processing loop
+└── agent.py               # Intelligent agent for task flow management
 ```
