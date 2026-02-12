@@ -53,6 +53,7 @@ def run_pipeline(
     task_description: str,
     test_call: Optional[str] = None,
     max_iterations: int = DEFAULT_MAX_ITERATIONS,
+    repair_command: Optional[str] = None,
 ) -> PipelineResult:
     """Run the full self-evolving pipeline for a programming task.
 
@@ -69,6 +70,9 @@ def run_pipeline(
         test_call: Optional expression used to verify correctness
                    (e.g. ``"add(2, 3)"``).
         max_iterations: Maximum repair iterations before giving up.
+        repair_command: Optional CLI command template for external repair
+                        tools.  Supports ``{issue_file}`` and
+                        ``{source_file}`` placeholders.
 
     Returns:
         A ``PipelineResult`` summarising the outcome.
@@ -134,7 +138,7 @@ def run_pipeline(
 
             # Stage 6: Repair
             logger.info("Stage 6: Repair")
-            repaired_source = repair_code(source, diag)
+            repaired_source = repair_code(source, diag, repair_command=repair_command)
             if repaired_source != source:
                 record.repaired = True
                 source = repaired_source

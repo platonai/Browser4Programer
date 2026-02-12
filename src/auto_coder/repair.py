@@ -2,21 +2,45 @@
 
 Given the original source code and a ``Diagnosis``, this module
 applies targeted repairs to produce corrected source code.
+
+When a *repair_command* is configured, the module can also delegate
+to an external CLI tool (e.g. ``copilot``) as a fallback when the
+built-in handlers cannot fix the issue.
 """
 
 from __future__ import annotations
 
+import logging
+import os
 import re
+import subprocess
+import tempfile
+from typing import Optional
 
 from .diagnosis import Diagnosis
 
+logger = logging.getLogger(__name__)
 
-def repair_code(source: str, diagnosis: Diagnosis) -> str:
+CLI_REPAIR_TIMEOUT = 120  # seconds
+
+
+def repair_code(
+    source: str,
+    diagnosis: Diagnosis,
+    repair_command: Optional[str] = None,
+) -> str:
     """Attempt to automatically repair source code based on a diagnosis.
+
+    First tries built-in pattern-based repair handlers.  If those
+    return the source unchanged **and** *repair_command* is set, the
+    module falls back to :func:`repair_code_with_cli`.
 
     Args:
         source: The original (broken) source code.
         diagnosis: The diagnosis describing the problem.
+        repair_command: Optional CLI command template.  May contain the
+            placeholders ``{issue_file}`` and ``{source_file}`` which
+            will be replaced with paths to temporary files.
 
     Returns:
         The repaired source code.  If no automatic repair is possible,
@@ -36,9 +60,130 @@ def repair_code(source: str, diagnosis: Diagnosis) -> str:
 
     handler = repair_handlers.get(category)
     if handler:
-        return handler(source, diagnosis)
+        repaired = handler(source, diagnosis)
+        if repaired != source:
+            return repaired
+
+    # Fallback to an external CLI tool when built-in repair has no effect
+    if repair_command:
+        return repair_code_with_cli(source, diagnosis, repair_command)
 
     return source
+
+
+def repair_code_with_cli(
+    source: str,
+    diagnosis: Diagnosis,
+    repair_command: str,
+) -> str:
+    """Attempt to repair code by invoking an external CLI tool.
+
+    The function writes the diagnosis to a temporary *issue file* and
+    the source code to a temporary *source file*, then executes
+    *repair_command* (with placeholder substitution).  After the
+    command completes the source file is read back — any changes made
+    by the tool are returned as the repaired code.
+
+    Supported placeholders in *repair_command*:
+
+    * ``{issue_file}``  — path to the issue description file
+    * ``{source_file}`` — path to the source code file
+
+    Args:
+        source: The original source code.
+        diagnosis: The diagnosis describing the problem.
+        repair_command: CLI command template with optional placeholders.
+
+    Returns:
+        The (possibly repaired) source code.  If the command fails
+        or produces no change the original source is returned.
+    """
+    tmpdir = tempfile.mkdtemp(prefix="auto_coder_repair_")
+    issue_path = os.path.join(tmpdir, "issue.md")
+    source_path = os.path.join(tmpdir, "source.py")
+
+    try:
+        # Write issue description
+        issue_content = _build_issue_description(source, diagnosis)
+        with open(issue_path, "w", encoding="utf-8") as fh:
+            fh.write(issue_content)
+
+        # Write source code
+        with open(source_path, "w", encoding="utf-8") as fh:
+            fh.write(source)
+
+        # Build the actual command
+        cmd = repair_command.replace("{issue_file}", issue_path)
+        cmd = cmd.replace("{source_file}", source_path)
+
+        logger.info("Running repair command: %s", cmd)
+        result = subprocess.run(
+            cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=CLI_REPAIR_TIMEOUT,
+        )
+
+        if result.returncode != 0:
+            logger.warning(
+                "Repair command exited with code %d: %s",
+                result.returncode,
+                result.stderr.strip(),
+            )
+            return source
+
+        # Read back (possibly repaired) source
+        with open(source_path, encoding="utf-8") as fh:
+            repaired = fh.read()
+
+        if repaired and repaired.strip():
+            return repaired
+        return source
+
+    except subprocess.TimeoutExpired:
+        logger.warning("Repair command timed out")
+        return source
+    except Exception:
+        logger.exception("Repair command failed")
+        return source
+    finally:
+        # Clean up temp files (best-effort)
+        for path in (issue_path, source_path):
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+        try:
+            os.rmdir(tmpdir)
+        except OSError:
+            pass
+
+
+def _build_issue_description(source: str, diagnosis: Diagnosis) -> str:
+    """Build a Markdown issue description from a diagnosis."""
+    parts = [
+        "# Auto-repair issue",
+        "",
+        "## Error",
+        "",
+        f"- **Category:** {diagnosis.error_category}",
+        f"- **Root cause:** {diagnosis.root_cause}",
+        f"- **Suggestion:** {diagnosis.suggestion}",
+    ]
+    if diagnosis.line_number is not None:
+        parts.append(f"- **Line:** {diagnosis.line_number}")
+    parts += [
+        "",
+        "## Source code",
+        "",
+        "```python",
+        source,
+        "```",
+        "",
+        "Please fix the source code in `source.py` based on the error above.",
+    ]
+    return "\n".join(parts) + "\n"
 
 
 def _repair_syntax(source: str, diagnosis: Diagnosis) -> str:

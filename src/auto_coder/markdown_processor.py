@@ -144,6 +144,7 @@ def _run_block_loop(
     source: str,
     block_index: int,
     max_iterations: int,
+    repair_command: Optional[str] = None,
 ) -> BlockResult:
     """Run the execute → diagnose → repair loop for a single code block."""
     original = source
@@ -173,7 +174,7 @@ def _run_block_loop(
             logger.info("  Block %d — %s: %s", block_index, diag.error_category, diag.root_cause)
 
             # Repair
-            repaired = repair_code(source, diag)
+            repaired = repair_code(source, diag, repair_command=repair_command)
             if repaired != source:
                 source = repaired
                 logger.info("  Block %d — repaired, retrying", block_index)
@@ -221,6 +222,7 @@ def process_markdown(
     filepath: str,
     *,
     max_iterations: int = DEFAULT_MAX_ITERATIONS,
+    repair_command: Optional[str] = None,
 ) -> MarkdownResult:
     """Process all code blocks in a Markdown file.
 
@@ -237,6 +239,9 @@ def process_markdown(
     Args:
         filepath: Path to the Markdown file.
         max_iterations: Maximum repair iterations per block.
+        repair_command: Optional CLI command template for external repair
+                        tools.  Supports ``{issue_file}`` and
+                        ``{source_file}`` placeholders.
 
     Returns:
         A ``MarkdownResult`` summarising outcomes for every block.
@@ -251,6 +256,7 @@ def process_markdown(
         markdown_text,
         filepath=filepath,
         max_iterations=max_iterations,
+        repair_command=repair_command,
     )
 
 
@@ -259,6 +265,7 @@ def process_markdown_text(
     *,
     filepath: str = "<string>",
     max_iterations: int = DEFAULT_MAX_ITERATIONS,
+    repair_command: Optional[str] = None,
 ) -> MarkdownResult:
     """Process code blocks from raw Markdown text.
 
@@ -269,6 +276,9 @@ def process_markdown_text(
         markdown_text: Raw Markdown content.
         filepath: Label used in the result (default ``"<string>"``).
         max_iterations: Maximum repair iterations per block.
+        repair_command: Optional CLI command template for external repair
+                        tools.  Supports ``{issue_file}`` and
+                        ``{source_file}`` placeholders.
 
     Returns:
         A ``MarkdownResult`` summarising outcomes for every block.
@@ -294,7 +304,7 @@ def process_markdown_text(
             continue
 
         # Stages 3-6: Execute → Diagnose → Repair loop
-        block_result = _run_block_loop(normalized, idx, max_iterations)
+        block_result = _run_block_loop(normalized, idx, max_iterations, repair_command=repair_command)
         md_result.block_results.append(block_result)
 
     logger.info(
