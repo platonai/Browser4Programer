@@ -6,7 +6,7 @@ An AI programmer initially works for Browser4.
 
 **auto_coder** is a Python automation pipeline that performs a closed-loop cycle of:
 
-1. **Understanding** – Parse and analyse a programming task description
+1. **Understanding** – Parse and analyze a programming task description
 2. **Design** – Create a solution blueprint (parameters, algorithm steps)
 3. **Programming** – Generate executable Python code
 4. **Execution** – Run the generated code in a sandboxed namespace

@@ -93,7 +93,7 @@ def _repair_reference(source: str, diagnosis: Diagnosis) -> str:
         stub = f"{indent}def {missing_name}(*args, **kwargs):\n{indent}    pass\n"
         return stub + source
     else:
-        # Add a variable initialisation before the first use
+        # Add a variable initialization before the first use
         for i, line in enumerate(lines):
             if missing_name in line:
                 indent = re.match(r'^(\s*)', line).group(1)
