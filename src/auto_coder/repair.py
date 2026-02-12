@@ -21,6 +21,8 @@ from .diagnosis import Diagnosis
 
 logger = logging.getLogger(__name__)
 
+CLI_REPAIR_TIMEOUT = 120  # seconds
+
 
 def repair_code(
     source: str,
@@ -120,7 +122,7 @@ def repair_code_with_cli(
             shell=True,
             capture_output=True,
             text=True,
-            timeout=120,
+            timeout=CLI_REPAIR_TIMEOUT,
         )
 
         if result.returncode != 0:

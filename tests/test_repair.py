@@ -91,20 +91,16 @@ class TestCliRepair:
         result = repair_code_with_cli(source, diag, cmd)
         assert result == source
 
-    def test_cli_repair_returns_original_on_timeout(self):
-        """Timed-out CLI command should return the original source."""
+    def test_cli_repair_returns_original_on_nonexistent_command(self):
+        """Non-existent CLI command should return the original source."""
         diag = Diagnosis(
             error_category="unknown",
             root_cause="mystery",
             suggestion="investigate",
         )
         source = "x = 1"
-        # sleep longer than the internal timeout (patched to 1s via monkeypatch below)
-        cmd = "sleep 999"
-        # We can't easily test the 120s timeout, but we can verify
-        # the function handles a non-existent command gracefully
-        cmd_bad = "nonexistent_command_xyz_12345"
-        result = repair_code_with_cli(source, diag, cmd_bad)
+        cmd = "nonexistent_command_xyz_12345"
+        result = repair_code_with_cli(source, diag, cmd)
         assert result == source
 
     def test_cli_repair_issue_file_placeholder(self):
