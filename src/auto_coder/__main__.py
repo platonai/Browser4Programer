@@ -161,7 +161,7 @@ def _print_markdown_result(md_result):
     print("=" * 60)
 
 
-def _run_agent(filepath: str, *, max_iterations: int, repair_command) -> AgentResult:
+def _run_agent(filepath: str, *, max_iterations: int, repair_command: str | None) -> AgentResult:
     """Load a JSON task file and run all tasks through the agent."""
     with open(filepath, encoding="utf-8") as fh:
         task_list = json.load(fh)
