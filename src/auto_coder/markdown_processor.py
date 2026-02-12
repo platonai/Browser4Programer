@@ -1,6 +1,6 @@
 """Markdown processor: extract, normalize, execute, diagnose, and auto-fix code blocks.
 
-Reads a Markdown document, extracts fenced code blocks, normalises
+Reads a Markdown document, extracts fenced code blocks, normalizes
 them, and runs each block through the execution → diagnosis → repair
 loop until it succeeds or the maximum number of iterations is reached.
 """
@@ -111,7 +111,7 @@ def normalize_code(source: str) -> str:
         source: Raw code extracted from a Markdown code block.
 
     Returns:
-        The normalised source code.
+        The normalized source code.
     """
     # Replace tabs with spaces
     code = source.expandtabs(4)
@@ -228,7 +228,7 @@ def process_markdown(
       1. **Extract** — pull code blocks from the Markdown source
       2. **Normalize** — clean up indentation, whitespace, tabs
       3. **Execute** — run the code in a sandboxed namespace
-      4. **Diagnose** — analyse any execution failure
+      4. **Diagnose** — analyze any execution failure
       5. **Repair** — auto-fix the code and loop back to step 3
 
     Only blocks whose language identifier is ``python`` (or empty) are
@@ -290,7 +290,7 @@ def process_markdown_text(
         # Stage 2: Normalize
         normalized = normalize_code(block.source)
         if not normalized.strip():
-            logger.info("  Block %d — empty after normalization, skipping", idx)
+            logger.info("  Block %d - empty after normalization, skipping", idx)
             continue
 
         # Stages 3-6: Execute → Diagnose → Repair loop
