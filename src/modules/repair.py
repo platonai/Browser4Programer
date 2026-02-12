@@ -79,7 +79,7 @@ Generate the corrected Python code that fixes these issues while maintaining the
             elif line.strip().startswith('```'):
                 in_code_block = False
                 continue
-            elif in_code_block or (not line.strip().startswith('```') and code_lines):
+            elif in_code_block:
                 code_lines.append(line)
         
         # If we found code in blocks, return it

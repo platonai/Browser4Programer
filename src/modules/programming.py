@@ -65,7 +65,7 @@ Make sure the code is production-quality with proper error handling."""
             elif line.strip().startswith('```'):
                 in_code_block = False
                 continue
-            elif in_code_block or (not line.strip().startswith('```') and code_lines):
+            elif in_code_block:
                 code_lines.append(line)
         
         # If we found code in blocks, return it
