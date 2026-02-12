@@ -25,6 +25,21 @@ python -m auto_coder -v "Write a function add that adds two numbers" \
     --test "add(2, 3)"
 ```
 
+### Markdown Processing
+
+Process code blocks inside a Markdown document through an automated
+**Extract → Normalize → Execute → Diagnose → Auto-fix** loop:
+
+```bash
+python -m auto_coder --markdown examples/demo.md
+python -m auto_coder --md examples/demo.md -v --max-iterations 3
+```
+
+Each fenced Python code block is extracted, cleaned up, executed in a
+sandbox, and — if execution fails — automatically diagnosed and repaired.
+The loop repeats until the block succeeds or the iteration limit is
+reached.
+
 ### Running Tests
 
 ```bash
@@ -36,13 +51,14 @@ python -m pytest tests/ -v
 
 ```
 src/auto_coder/
-├── __init__.py        # Package metadata
-├── __main__.py        # CLI entry point
-├── understanding.py   # Stage 1: task parsing
-├── design.py          # Stage 2: solution design
-├── programming.py     # Stage 3: code generation
-├── execution.py       # Stage 4: code execution
-├── diagnosis.py       # Stage 5: error analysis
-├── repair.py          # Stage 6: automatic repair
-└── pipeline.py        # Orchestrator (closed loop)
+├── __init__.py            # Package metadata
+├── __main__.py            # CLI entry point
+├── understanding.py       # Stage 1: task parsing
+├── design.py              # Stage 2: solution design
+├── programming.py         # Stage 3: code generation
+├── execution.py           # Stage 4: code execution
+├── diagnosis.py           # Stage 5: error analysis
+├── repair.py              # Stage 6: automatic repair
+├── pipeline.py            # Orchestrator (closed loop)
+└── markdown_processor.py  # Markdown code-block processing loop
 ```

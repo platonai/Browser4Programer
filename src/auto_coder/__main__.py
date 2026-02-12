@@ -3,6 +3,7 @@
 Usage:
     python -m auto_coder "Write a function that computes the factorial of n"
     python -m auto_coder --task "Sort a list" --test "solution([3,1,2])"
+    python -m auto_coder --markdown examples/demo.md
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ import logging
 import sys
 
 from .pipeline import run_pipeline
+from .markdown_processor import process_markdown
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -37,6 +39,13 @@ def main(argv: list[str] | None = None) -> int:
         help="Test expression to verify correctness (e.g. 'add(2, 3)')",
     )
     parser.add_argument(
+        "--markdown", "--md",
+        dest="markdown_file",
+        default=None,
+        help="Path to a Markdown file whose code blocks will be extracted, "
+             "executed, diagnosed, and auto-fixed",
+    )
+    parser.add_argument(
         "--max-iterations", "-m",
         type=int,
         default=5,
@@ -50,12 +59,22 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
 
-    task_description = args.task or args.task_flag
-    if not task_description:
-        parser.error("A task description is required")
-
     level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(level=level, format="%(levelname)s: %(message)s")
+
+    # Markdown mode
+    if args.markdown_file:
+        md_result = process_markdown(
+            args.markdown_file,
+            max_iterations=args.max_iterations,
+        )
+        _print_markdown_result(md_result)
+        return 0 if md_result.failure_count == 0 else 1
+
+    # Task mode
+    task_description = args.task or args.task_flag
+    if not task_description:
+        parser.error("A task description or --markdown file is required")
 
     result = run_pipeline(
         task_description=task_description,
@@ -85,6 +104,29 @@ def _print_result(result):
         if last.diagnosis:
             print(f"\nLast error: {last.diagnosis.root_cause}")
             print(f"Suggestion: {last.diagnosis.suggestion}")
+    print("=" * 60)
+
+
+def _print_markdown_result(md_result):
+    """Print a human-readable summary of the Markdown processing result."""
+    print("\n" + "=" * 60)
+    print("MARKDOWN PROCESSING RESULT")
+    print("=" * 60)
+    print(f"File: {md_result.filepath}")
+    print(f"Total blocks: {md_result.total_blocks}")
+    print(f"Executed: {len(md_result.block_results)}")
+    print(f"Succeeded: {md_result.success_count}")
+    print(f"Failed: {md_result.failure_count}")
+
+    for br in md_result.block_results:
+        status = "SUCCESS" if br.success else "FAILED"
+        print(f"\n--- Block {br.block_index} [{status}] "
+              f"({br.iterations} iteration(s)) ---")
+        print(br.final_code)
+        if not br.success and br.last_diagnosis:
+            print(f"  Error: {br.last_diagnosis.root_cause}")
+            print(f"  Suggestion: {br.last_diagnosis.suggestion}")
+
     print("=" * 60)
 
 
